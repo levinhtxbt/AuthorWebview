@@ -14,12 +14,12 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:id="@+id/auth"
+        android:id="@+id/buttonSignIn"
         android:text="Sign in with Google" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/Access"
+        android:id="@+id/textView"
         android:autoLink="all"
         android:textIsSelectable="true"
         android:layout_gravity="center"

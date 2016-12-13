@@ -14,14 +14,14 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.example.virus.demoauthorusingwebview.retrofit.RetrofitInterface;
 import com.example.virus.demoauthorusingwebview.retrofit.TokenResponse;
+import com.example.virus.demoauthorusingwebview.utils.Constant;
+import com.facebook.stetho.Stetho;
+import com.facebook.stetho.okhttp3.StethoInterceptor;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.GsonBuilder;
-
 import java.util.concurrent.TimeUnit;
-
 import okhttp3.Cache;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
@@ -31,79 +31,31 @@ import retrofit2.converter.gson.GsonConverterFactory;
 import rx.Observer;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
+import static com.example.virus.demoauthorusingwebview.utils.Constant.CLIENT_ID;
+import static com.example.virus.demoauthorusingwebview.utils.Constant.CLIENT_SECRET;
+import static com.example.virus.demoauthorusingwebview.utils.Constant.GRANT_TYPE;
+import static com.example.virus.demoauthorusingwebview.utils.Constant.OAUTH_SCOPE;
+import static com.example.virus.demoauthorusingwebview.utils.Constant.OAUTH_URL;
+import static com.example.virus.demoauthorusingwebview.utils.Constant.REDIRECT_URI;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private static final String TAG = MainActivity.class.getSimpleName();
-    private static String BASE_URL = "https://accounts.google.com";
-    private static String CLIENT_ID = "345372135922-5fkbks2bmkup55f5dl60g4752uami9gq.apps.googleusercontent.com";
-    private static String CLIENT_SECRET = "k783JFFc9yK7NMHO7cJeRo0q";
-    private static String REDIRECT_URI = "http://localhost";
-    private static String GRANT_TYPE = "authorization_code";
-    private static String OAUTH_URL = "https://accounts.google.com/o/oauth2/auth";
-    private static String OAUTH_SCOPE = "https://www.googleapis.com/auth/urlshortener";
 
-    WebView web;
-    Button auth;
+    WebView webView;
+    Button buttonSignIn;
     SharedPreferences pref;
-    TextView Access;
+    TextView textView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        pref = getSharedPreferences("AppPref", MODE_PRIVATE);
-        Access = (TextView) findViewById(R.id.Access);
-        auth = (Button) findViewById(R.id.auth);
-        auth.setOnClickListener(new View.OnClickListener() {
-            Dialog auth_dialog;
-            @Override
-            public void onClick(View v) {
-                auth_dialog = new Dialog(MainActivity.this);
-
-                auth_dialog.setContentView(R.layout.auth_dialog);
-                web = (WebView) auth_dialog.findViewById(R.id.webv);
-                web.getSettings().setJavaScriptEnabled(true);
-                web.loadUrl(OAUTH_URL + "?redirect_uri=" + REDIRECT_URI + "&response_type=code&client_id=" + CLIENT_ID + "&scope=" + OAUTH_SCOPE);
-                web.setWebViewClient(new WebViewClient() {
-                    boolean authComplete = false;
-                    Intent resultIntent = new Intent();
-                    String authCode;
-
-                    @Override
-                    public void onPageFinished(WebView view, String url) {
-                        super.onPageFinished(view, url);
-                        if (url.contains("?code=") && authComplete != true) {
-                            Uri uri = Uri.parse(url);
-                            authCode = uri.getQueryParameter("code");
-                            Log.i("", "CODE : " + authCode);
-                            authComplete = true;
-                            resultIntent.putExtra("code", authCode);
-                            MainActivity.this.setResult(Activity.RESULT_OK, resultIntent);
-                            setResult(Activity.RESULT_CANCELED, resultIntent);
-
-                            SharedPreferences.Editor edit = pref.edit();
-                            edit.putString("Code", authCode);
-                            edit.commit();
-                            auth_dialog.dismiss();
-                            getAccessToken(authCode);
-                            Toast.makeText(getApplicationContext(), "Authorization Code is: " + authCode, Toast.LENGTH_SHORT).show();
-                        } else if (url.contains("error=access_denied")) {
-                            Log.i("", "ACCESS_DENIED_HERE");
-                            resultIntent.putExtra("code", authCode);
-                            authComplete = true;
-                            setResult(Activity.RESULT_CANCELED, resultIntent);
-                            Toast.makeText(getApplicationContext(), "Error Occured", Toast.LENGTH_SHORT).show();
-                            auth_dialog.dismiss();
-                        }
-                    }
-                });
-                auth_dialog.show();
-                auth_dialog.setTitle("Authorize");
-                auth_dialog.setCancelable(true);
-            }
-        });
-
+        Stetho.initializeWithDefaults(this);
+        pref = getSharedPreferences(Constant.PREF_NAME, MODE_PRIVATE);
+        textView = (TextView) findViewById(R.id.textView);
+        buttonSignIn = (Button) findViewById(R.id.buttonSignIn);
+        buttonSignIn.setOnClickListener(this);
     }
 
     public void getAccessToken(String code) {
@@ -117,12 +69,14 @@ public class MainActivity extends AppCompatActivity {
         HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
         logging.setLevel(HttpLoggingInterceptor.Level.BASIC);
         OkHttpClient.Builder httpClientBuilder = new OkHttpClient.Builder().
-                readTimeout(30, TimeUnit.SECONDS).connectTimeout(30, TimeUnit.SECONDS);
-        httpClientBuilder.addInterceptor(logging);
+                readTimeout(30, TimeUnit.SECONDS)
+                .connectTimeout(30, TimeUnit.SECONDS);
+        httpClientBuilder.addInterceptor(logging)
+                .addNetworkInterceptor(new StethoInterceptor());
         httpClientBuilder.cache(cache);
         //retrofit
         Retrofit service = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
+                .baseUrl(Constant.HOST)
                 .addConverterFactory(GsonConverterFactory.create(gsonBuilder.create()))
                 .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
                 .client(httpClientBuilder.build())
@@ -147,14 +101,63 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onNext(TokenResponse tokenResponse) {
                         Toast.makeText(MainActivity.this, tokenResponse.getAccess_token(), Toast.LENGTH_SHORT).show();
-                        Log.d(TAG, "access_token: " + tokenResponse.getAccess_token());
-                        Log.d(TAG, "expires_in: " + tokenResponse.getExpires_in());
-                        Log.d(TAG, "refresh_token: " + tokenResponse.getRefresh_token());
-                        Log.d(TAG, "token_type: " + tokenResponse.getToken_type());
+                        SharedPreferences.Editor edit = pref.edit();
+                        edit.putString("access_token", tokenResponse.getAccess_token());
+                        edit.commit();
                     }
                 });
-
-
     }
 
+    @Override
+    public void onClick(View v) {
+        final Dialog auth_dialog;
+        auth_dialog = new Dialog(MainActivity.this);
+        auth_dialog.setContentView(R.layout.auth_dialog);
+
+        webView = (WebView) auth_dialog.findViewById(R.id.webView);
+        webView.getSettings().setJavaScriptEnabled(true);
+        webView.loadUrl(OAUTH_URL + "?redirect_uri=" + REDIRECT_URI + "&response_type=code&client_id=" + CLIENT_ID + "&scope=" + OAUTH_SCOPE);
+        webView.setWebViewClient(new WebViewClient() {
+            boolean authComplete = false;
+            Intent resultIntent = new Intent();
+            String authCode;
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (url.contains("?code=") && authComplete != true) {
+                    Uri uri = Uri.parse(url);
+                    authCode = uri.getQueryParameter(Constant.ServiceParameter.CODE);
+                    authComplete = true;
+                    resultIntent.putExtra(Constant.ServiceParameter.CODE, authCode);
+                    MainActivity.this.setResult(Activity.RESULT_OK, resultIntent);
+                    setResult(Activity.RESULT_CANCELED, resultIntent);
+
+                    SharedPreferences.Editor edit = pref.edit();
+                    edit.putString(Constant.ServiceParameter.CODE, authCode);
+                    edit.commit();
+
+                    auth_dialog.dismiss();
+
+                    getAccessToken(authCode);
+
+                    Toast.makeText(getApplicationContext(), "Authorization Code is: " + authCode, Toast.LENGTH_SHORT).show();
+
+                } else if (url.contains("error=access_denied")) {
+                    Log.i("", "ACCESS_DENIED_HERE");
+                    resultIntent.putExtra(Constant.ServiceParameter.CODE, authCode);
+                    authComplete = true;
+
+                    setResult(Activity.RESULT_CANCELED, resultIntent);
+                    Toast.makeText(getApplicationContext(), "Error Occured", Toast.LENGTH_SHORT).show();
+
+                    auth_dialog.dismiss();
+                }
+            }
+        });
+
+        auth_dialog.show();
+        auth_dialog.setTitle("Authorize");
+        auth_dialog.setCancelable(true);
+    }
 }

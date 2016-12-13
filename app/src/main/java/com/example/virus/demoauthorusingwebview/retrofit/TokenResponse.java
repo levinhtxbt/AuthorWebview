@@ -17,8 +17,6 @@ public class TokenResponse {
     @SerializedName("token_type")
     private String token_type;
 
-
-
     public String getAccess_token() {
         return access_token;
     }

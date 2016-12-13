@@ -4,13 +4,11 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
-import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -45,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
     private static String OAUTH_URL = "https://accounts.google.com/o/oauth2/auth";
     private static String OAUTH_SCOPE = "https://www.googleapis.com/auth/urlshortener";
 
-
     WebView web;
     Button auth;
     SharedPreferences pref;
@@ -68,18 +65,9 @@ public class MainActivity extends AppCompatActivity {
                 web = (WebView) auth_dialog.findViewById(R.id.webv);
                 web.getSettings().setJavaScriptEnabled(true);
                 web.loadUrl(OAUTH_URL + "?redirect_uri=" + REDIRECT_URI + "&response_type=code&client_id=" + CLIENT_ID + "&scope=" + OAUTH_SCOPE);
-                web.setWebChromeClient(new WebChromeClient(){
-
-                });
                 web.setWebViewClient(new WebViewClient() {
                     boolean authComplete = false;
                     Intent resultIntent = new Intent();
-
-                    @Override
-                    public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                        super.onPageStarted(view, url, favicon);
-                    }
-
                     String authCode;
 
                     @Override
